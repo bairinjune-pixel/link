@@ -79,16 +79,16 @@
 
 📝 <b>Example of <code>.env</code> file:</b>
 
-```API_ID=1234567
-API_HASH=d927c13beaaf5110f25c505b7c071273
-BOT_TOKEN=70968:AAGqBywYUNDPLihDt4U2j4IF0GDo
-ADMINS=5977931010 123456789
-OWNER_USERNAME=BOT_OWNER26
-DATABASE_URI=mongodb+srv://AVBOTz:password@cluster0.uyhm.mongodb.net/?retryWrites=true&w=majority
-BIN_CHANNEL=-1002114619001
-LOG_CHANNEL=-1002114619001
+```API_ID=36840340
+API_HASH=e8a3ead29e2a11fc5471432c4dd2e0cf
+BOT_TOKEN=7530937814:AAHjEn0X2ocE8U64r0rW7L0gObLHvQeLedc
+ADMINS=1852711786
+OWNER_USERNAME=@ErrorXace_xd
+DATABASE_URI=mongodb+srv://anievol:612384@anievol.gmimmb6.mongodb.net/?appName=anievol
+BIN_CHANNEL=-1003520330037
+LOG_CHANNEL=-1003328735913
 PORT=8080
-URL=https://av-bot-pro.koyeb.app/
+URL=
 ```
 
 </details>
