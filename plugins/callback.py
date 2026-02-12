@@ -167,7 +167,8 @@ async def cb_handler(client: Client, query: CallbackQuery):
             original_msg = await client.get_messages(int(BIN_CHANNEL), msg_id)
             if not original_msg or original_msg.empty:
                 return await query.answer("❌ File not found.", show_alert=True)
-            online = f"{URL}watch/{original_msg.id}?hash={get_hash(original_msg)}"
+            # Updated to use mini app URL
+            online = f"{URL}app/{original_msg.id}?hash={get_hash(original_msg)}"
             download = f"{URL}{original_msg.id}?hash={get_hash(original_msg)}"
             btn = [[
                 InlineKeyboardButton("ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ", url=online),
