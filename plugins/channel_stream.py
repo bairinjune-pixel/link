@@ -31,7 +31,8 @@ async def channel_receive_handler(bot: Client, broadcast: Message):
         file = broadcast.document or broadcast.video
         file_name = file.file_name if file else "Unknown File"
         msg = await broadcast.forward(chat_id=BIN_CHANNEL)
-        raw_stream = f"{URL}watch/{msg.id}/avbotz.mkv?hash={get_hash(msg)}"
+        # Updated to use mini app URL
+        raw_stream = f"{URL}app/{msg.id}?hash={get_hash(msg)}"
         raw_download = f"{URL}{msg.id}?hash={get_hash(msg)}"
         raw_file_link = f"https://t.me/{temp.U_NAME}?start=file_{msg.id}"
         if IS_SHORTLINK:
@@ -91,7 +92,7 @@ async def group_link_handler(bot: Client, message: Message):
             return await status_msg.edit(f"❌ Error forwarding to Bin Channel: {e}")
         file = reply.document or reply.video
         file_name = file.file_name if hasattr(file, 'file_name') and file.file_name else "Unknown File"
-        raw_stream = f"{URL}watch/{log_msg.id}/avbotz.mkv?hash={get_hash(log_msg)}"
+        raw_stream = f"{URL}app/{log_msg.id}?hash={get_hash(log_msg)}"
         raw_download = f"{URL}{log_msg.id}?hash={get_hash(log_msg)}"
         raw_file_link = f"https://t.me/{temp.U_NAME}?start=file_{log_msg.id}"
         if IS_SHORTLINK:
