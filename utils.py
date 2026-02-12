@@ -8,8 +8,7 @@ from datetime import datetime, timedelta, date, time
 import pytz
 from database.users_db import db
 from Script import script
-from info import PING_INTERVAL, SHORTLINK_API, SHORTLINK_URL, SHORTLINK_API2, SHORTLINK_WEBSITE2, URL 
-from shortzy import Shortzy
+from info import PING_INTERVAL, URL
 
 # -------------------------- LOGGER INITIALIZATION -------------------------- #
 logger = logging.getLogger(__name__)
@@ -84,68 +83,4 @@ def get_readable_time(seconds: int) -> str:
         time_list.append(f"{int(result)}{time_suffix[count - 1]}")
     time_list.reverse()
     return ": ".join(time_list)
-
-# -------------------------- SHORT LINK GENERATOR (Manual) -------------------------- #
-async def get_shortlink(link):
-    API = SHORTLINK_API
-    URL_DOMAIN = SHORTLINK_URL
-    
-    if not link.startswith("https"):
-        link = link.replace("http", "https", 1)
-
-    if URL_DOMAIN == "api.shareus.in":
-        req_url = f"https://{URL_DOMAIN}/shortLink"
-        params = {"token": API, "format": "json", "link": link}
-    else:
-        req_url = f"https://{URL_DOMAIN}/api"
-        params = {"api": API, "url": link}
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(req_url, params=params, ssl=False) as response:
-                data = await response.json(content_type=None)
-                
-                if data.get("status") == "success" or data.get("shortenedUrl"):
-                    return data.get("shortlink") or data.get("shortenedUrl")
-                else:
-                    logger.error(f"Shorten Error: {data.get('message', 'Unknown Error')}")
-                    
-    except Exception as e:
-        logger.error(f"Shorten Exception: {e}")
-
-    return f"https://{URL_DOMAIN}/api?api={API}&url={link}"
-
-# -------------------------- SHORTENER HELPER (Shortzy Library) -------------------------- #
-async def get_shortlink_av(url, is_second_shortener=False):
-    """
-    Uses Shortzy library to generate links.
-    Handles switching between Primary and Secondary shorteners.
-    """
-    if is_second_shortener:
-        api = SHORTLINK_API2
-        site = SHORTLINK_WEBSITE2
-    else:
-        api = SHORTLINK_API
-        site = SHORTLINK_URL  # Fixed: Changed from SHORTLINK_WEBSITE to SHORTLINK_URL matches import
-
-    shortzy = Shortzy(api, site)
-    try:
-        url = await shortzy.convert(url)
-    except Exception as e:
-        logger.error(f"Shortener Error: {e}")
-        try:
-            url = await shortzy.get_quick_link(url)
-        except Exception:
-            logger.error("Failed to generate shortlink")
-    return url
-
-# --- BACKGROUND DELETE HELPER ---
-async def auto_delete_message(message, dlt_msg):
-    """Waits 600s then deletes the verify prompt to keep chat clean."""
-    await asyncio.sleep(600)
-    try:
-        await dlt_msg.delete()
-        await message.delete()
-    except Exception:
-        pass
         
