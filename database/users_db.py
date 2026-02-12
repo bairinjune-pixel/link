@@ -3,7 +3,7 @@ from datetime import timedelta  # Added missing import
 import pytz
 import motor.motor_asyncio
 import logging
-from info import DB_URL, DB_NAME, TIMEZONE, VERIFY_EXPIRE
+from info import DB_URL, DB_NAME, TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,6 @@ class Database:
         self.files = mydb.files
         self.refer_collection = mydb.refers 
         self.misc = mydb.misc
-        self.verify_id = mydb.verify_id
-        self.protected_links = mydb.protected_links
 
     def new_user(self, id, name):
         return {
@@ -43,36 +41,6 @@ class Database:
 
     async def delete_user(self, user_id):
         await self.users.delete_many({'id': int(user_id)})
-    
-    async def get_link_by_url(self, url):
-        return await self.protected_links.find_one({"url": url})
-
-    async def update_protected_link(self, token, password, title, channel_link):
-        await self.protected_links.update_one(
-            {"token": token},
-            {"$set": {"password": password, "title": title, "channel_link": channel_link}}
-        )
-
-    async def add_protected_link(self, token, original_url, password, title, channel_link):
-        await self.protected_links.insert_one({
-            "token": token,
-            "url": original_url,
-            "password": password,
-            "title": title,                 # Feature 5
-            "channel_link": channel_link    # Feature 1
-        })
-
-    async def get_protected_link(self, token):
-        return await self.protected_links.find_one({"token": token})
-
-    async def delete_protected_link(self, token):
-        # Token match karke delete karega
-        result = await self.protected_links.delete_one({"token": token})
-        return result.deleted_count > 0
-        
-    async def get_all_protected_links(self):
-        # Saare documents return karega cursor ke roop mein
-        return self.protected_links.find({})
         
     async def get_notcopy_user(self, user_id):
         user_id = int(user_id)
@@ -96,81 +64,13 @@ class Database:
         return await self.misc.update_one(myquery, newvalues)
 
     async def is_user_verified(self, user_id):
-        user = await self.get_notcopy_user(user_id)
-        try:
-            pastDate = user["last_verified"]
-        except Exception:
-            user = await self.get_notcopy_user(user_id)
-            pastDate = user["last_verified"]
-        ist_timezone = pytz.timezone(TIMEZONE)
-        if pastDate.tzinfo is None:
-             pastDate = pytz.utc.localize(pastDate)
-        pastDate = pastDate.astimezone(ist_timezone)
-        current_time = datetime.datetime.now(tz=ist_timezone)
-        midnight = datetime.datetime(current_time.year, current_time.month, current_time.day, 0, 0, 0, tzinfo=ist_timezone)
-        seconds_since_midnight = (current_time - midnight).total_seconds()
-        time_diff = current_time - pastDate
-        total_seconds = time_diff.total_seconds()
-        return total_seconds <= seconds_since_midnight
+        return True
 
     async def use_second_shortener(self, user_id):
-        user = await self.get_notcopy_user(user_id)
-        if not user.get("second_time_verified"):
-            ist_timezone = pytz.timezone(TIMEZONE)
-            await self.update_notcopy_user(user_id, {"second_time_verified": datetime.datetime(2019, 5, 17, 0, 0, 0, tzinfo=ist_timezone)})
-            user = await self.get_notcopy_user(user_id)
-        if await self.is_user_verified(user_id):
-            try:
-                pastDate = user["last_verified"]
-            except Exception:
-                user = await self.get_notcopy_user(user_id)
-                pastDate = user["last_verified"]
-            ist_timezone = pytz.timezone(TIMEZONE)
-            if pastDate.tzinfo is None: pastDate = pytz.utc.localize(pastDate)
-            pastDate = pastDate.astimezone(ist_timezone)
-            if user["second_time_verified"].tzinfo is None:
-                 user["second_time_verified"] = pytz.utc.localize(user["second_time_verified"])
-            second_time = user["second_time_verified"].astimezone(ist_timezone)
-            current_time = datetime.datetime.now(tz=ist_timezone)
-            time_difference = current_time - pastDate
-            if time_difference > datetime.timedelta(seconds=VERIFY_EXPIRE):
-                return second_time < pastDate
         return False
 
-    async def create_verify_id(self, user_id: int, hash, file_id=None):
-        # Humne 'file_id' parameter add kiya hai
-        res = {"user_id": user_id, "hash": hash, "verified": False, "file_id": file_id}
-        return await self.verify_id.insert_one(res)
-
-    async def get_verify_id_info(self, user_id: int, hash):
-        return await self.verify_id.find_one({"user_id": user_id, "hash": hash})
-
-    async def update_verify_id_info(self, user_id, hash, value: dict):
-        myquery = {"user_id": user_id, "hash": hash}
-        newvalues = {"$set": value}
-        return await self.verify_id.update_one(myquery, newvalues)
-
     async def get_verification_stats(self):
-        ist_timezone = pytz.timezone(TIMEZONE)
-        current_time = datetime.datetime.now(tz=ist_timezone)
-        
-        # Aaj raat 12 baje (Midnight) ka time nikalo
-        midnight = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # MongoDB query ke liye UTC mein convert karein
-        midnight_utc = midnight.astimezone(pytz.utc)
-
-        # Level 1: Wo log jinhone aaj 1st Link verify kiya
-        level1_count = await self.misc.count_documents({
-            "last_verified": {"$gte": midnight_utc}
-        })
-
-        # Level 2: Wo log jinhone aaj 2nd Link verify kiya
-        level2_count = await self.misc.count_documents({
-            "second_time_verified": {"$gte": midnight_utc}
-        })
-
-        return level1_count, level2_count
+        return 0, 0
         
     async def is_user_in_list(self, user_id):
         user = await self.refer_collection.find_one({"user_id": int(user_id)})
