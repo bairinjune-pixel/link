@@ -65,5 +65,59 @@ async def render_page(id, secure_hash, src=None):
         file_get=file_get_link,
         file_unique_id=file_data.unique_id,
     )
-    
+
+
+async def render_mini_app(file_id: int, secure_hash: str):
+    """
+    Render the Telegram Mini App interface for video streaming
+    with audio/subtitle selection capabilities
+    """
+    try:
+        # Get file data
+        file_data = await get_file_ids(WebavBot, int(BIN_CHANNEL), int(file_id))
+        
+        # Validate hash
+        if file_data.unique_id[:6] != secure_hash:
+            logging.debug(f"Invalid hash for message with ID {file_id}")
+            raise InvalidHash
+        
+        # Prepare file information
+        raw_file_name = file_data.file_name if file_data.file_name else f"File_{file_id}"
+        file_name = raw_file_name.replace("_", " ").replace(".", " ")
+        safe_quoted_name = urllib.parse.quote_plus(str(raw_file_name))
+        
+        # Generate stream URL
+        stream_url = urllib.parse.urljoin(
+            URL,
+            f"{file_id}/{safe_quoted_name}?hash={secure_hash}",
+        )
+        
+        # Generate download URL
+        download_url = stream_url
+        
+        # Get file size in human readable format
+        file_size = humanbytes(file_data.file_size)
+        
+        # Load mini app template
+        async with aiofiles.open("web/template/mini_app.html", mode='r') as f:
+            template_content = await f.read()
+            template = jinja2.Template(template_content)
+        
+        # Render with variables
+        return template.render(
+            file_id=file_id,
+            file_hash=secure_hash,
+            file_name=file_name,
+            file_size=file_size,
+            stream_url=stream_url,
+            download_url=download_url,
+            mime_type=file_data.mime_type,
+            file_unique_id=file_data.unique_id,
+        )
+        
+    except InvalidHash as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Error rendering mini app: {e}")
+        raise
 
