@@ -8,29 +8,28 @@ from datetime import datetime, timedelta, date, time
 import pytz
 from database.users_db import db
 from Script import script
-from info import *
+from info import PING_INTERVAL, SHORTLINK_API, SHORTLINK_URL, SHORTLINK_API2, SHORTLINK_WEBSITE2, URL 
 from shortzy import Shortzy
 
 # -------------------------- LOGGER INITIALIZATION -------------------------- #
-# Logger को initialize किया गया ताकि errors और info logs को track किया जा सके
 logger = logging.getLogger(__name__)
 
 # -------------------------- TEMPORARY DATA STORAGE -------------------------- #
-# यह क्लास बोट के रनटाइम में temporary इन-मैमोरी storage के रूप में काम करती है
 class temp:
     ME = None
     BOT = None
     U_NAME = None
     B_NAME = None
-    TOKENS = {}      # User tokens temporarily store करने के लिए
-    VERIFIED = {}    # Verified users की जानकारी cache करने के लिए
-
+    
 # -------------------------- PING SERVER -------------------------- #
-# Server को नियमित समय पर ping करता है ताकि वह active बना रहे
 async def ping_server():
     while True:
-        await asyncio.sleep(PING_INTERVAL)  # हर interval पर रन होगा
+        await asyncio.sleep(PING_INTERVAL)
         try:
+            if not URL:
+                logger.warning("⚠️ URL not found in info.py for ping_server")
+                continue
+                
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                 async with session.get(URL) as resp:
                     logging.info(f"✅ Pinged server: {resp.status}")
@@ -41,8 +40,8 @@ async def ping_server():
             traceback.print_exc()
 
 # -------------------------- FILE SIZE CONVERTER -------------------------- #
-# Bytes में दिए गए साइज़ को human-readable format में convert करता है
 def get_size(size: int) -> str:
+    """Bytes to readable format converter"""
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
     size = float(size)
     i = 0
@@ -51,9 +50,24 @@ def get_size(size: int) -> str:
         i += 1
     return f"{size:.2f} {units[i]}"
 
+def humanbytes(size: int) -> str:
+    """Alternative bytes converter"""
+    if size is None:
+        return "0 B"
+    power = 2 ** 10
+    n = 0
+    power_labels = {0: "B", 1: "KB", 2: "MB", 3: "GB", 4: "TB"}
+    while size >= power and n < 4:
+        size /= power
+        n += 1
+    return f"{size:.2f} {power_labels[n]}"
+    
 # -------------------------- READABLE TIME FORMATTER -------------------------- #
-# Seconds को readable time format (hh:mm:ss) में convert करता है
 def get_readable_time(seconds: int) -> str:
+    """Seconds to readable time (e.g., 1h 30m 10s)"""
+    if not seconds:
+        return "0s"
+        
     time_list = []
     time_suffix = ["s", "m", "h", " days"]
     count = 0
@@ -71,125 +85,67 @@ def get_readable_time(seconds: int) -> str:
     time_list.reverse()
     return ": ".join(time_list)
 
-# -------------------------- SHORT LINK GENERATOR (For Verification) -------------------------- #
-# Verification लिंक को short करता है ताकि यूज़र verify कर सके
-async def get_verify_shorted_link(link):
-    API = SHORTLINK_API
-    URL = SHORTLINK_URL
-    if not link.startswith("https"):
-        link = link.replace("http", "https", 1)
-
-    if URL == "api.shareus.in":
-        url = f"https://{URL}/shortLink"
-        params = {"token": API, "format": "json", "link": link}
-    else:
-        url = f"https://{URL}/api"
-        params = {"api": API, "url": link}
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, ssl=False) as response:
-                data = await response.json(content_type="text/html" if URL == "api.shareus.in" else None)
-                if data["status"] == "success":
-                    return data.get("shortlink") or data.get("shortenedUrl")
-                else:
-                    logger.error(f"Shorten Error: {data['message']}")
-    except Exception as e:
-        logger.error(f"Shorten Exception: {e}")
-
-    return f"{url}?token={API}&link={link}"
-
-# -------------------------- SHORT LINK GENERATOR (Normal) -------------------------- #
-# General लिंक को short करने वाला function
+# -------------------------- SHORT LINK GENERATOR (Manual) -------------------------- #
 async def get_shortlink(link):
     API = SHORTLINK_API
-    URL = SHORTLINK_URL
+    URL_DOMAIN = SHORTLINK_URL
+    
     if not link.startswith("https"):
         link = link.replace("http", "https", 1)
 
-    if URL == "api.shareus.in":
-        url = f"https://{URL}/shortLink"
+    if URL_DOMAIN == "api.shareus.in":
+        req_url = f"https://{URL_DOMAIN}/shortLink"
         params = {"token": API, "format": "json", "link": link}
     else:
-        url = f"https://{URL}/api"
+        req_url = f"https://{URL_DOMAIN}/api"
         params = {"api": API, "url": link}
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, ssl=False) as response:
-                data = await response.json(content_type="text/html" if URL == "api.shareus.in" else None)
-                if data["status"] == "success":
+            async with session.get(req_url, params=params, ssl=False) as response:
+                data = await response.json(content_type=None)
+                
+                if data.get("status") == "success" or data.get("shortenedUrl"):
                     return data.get("shortlink") or data.get("shortenedUrl")
                 else:
-                    logger.error(f"Shorten Error: {data['message']}")
+                    logger.error(f"Shorten Error: {data.get('message', 'Unknown Error')}")
+                    
     except Exception as e:
         logger.error(f"Shorten Exception: {e}")
 
-    return f"{url}?token={API}&link={link}"
+    return f"https://{URL_DOMAIN}/api?api={API}&url={link}"
 
-# -------------------------- TOKEN VALIDITY CHECK -------------------------- #
-# यह check करता है कि यूज़र का दिया गया token अभी valid है या नहीं
-async def check_token(bot, userid, token):
-    user = await bot.get_users(userid)
-    tokens = temp.TOKENS.get(user.id, {})
-    return tokens.get(token) == False
+# -------------------------- SHORTENER HELPER (Shortzy Library) -------------------------- #
+async def get_shortlink_av(url, is_second_shortener=False):
+    """
+    Uses Shortzy library to generate links.
+    Handles switching between Primary and Secondary shorteners.
+    """
+    if is_second_shortener:
+        api = SHORTLINK_API2
+        site = SHORTLINK_WEBSITE2
+    else:
+        api = SHORTLINK_API
+        site = SHORTLINK_URL  # Fixed: Changed from SHORTLINK_WEBSITE to SHORTLINK_URL matches import
 
-# -------------------------- TOKEN GENERATOR -------------------------- #
-# User को verify करने के लिए एक unique token generate करता है और short link देता है
-async def get_token(bot, userid, link):
-    user = await bot.get_users(userid)
-    token = ''.join(random.choices(string.ascii_letters + string.digits, k=7))
-    temp.TOKENS[user.id] = {token: False}
-    full_link = f"{link}verify-{user.id}-{token}"
-    short_link = await get_verify_shorted_link(full_link)
-    return short_link
-
-# -------------------------- GET VERIFICATION STATUS -------------------------- #
-# User की verification status को cache से या DB से लाता है
-async def get_verify_status(userid):
-    status = temp.VERIFIED.get(userid)
-    if not status:
-        status = await db.get_verified(userid)
-        temp.VERIFIED[userid] = status
-    return status
-
-# -------------------------- UPDATE VERIFICATION STATUS -------------------------- #
-# User के verification expiry को update करता है
-async def update_verify_status(userid, date_temp, time_temp):
-    status = await get_verify_status(userid)
-    status["date"] = date_temp
-    status["time"] = time_temp
-    temp.VERIFIED[userid] = status
-    await db.update_verification(userid, date_temp, time_temp)
-
-# -------------------------- VERIFY USER -------------------------- #
-# User को verify करता है और उसकी expiry date सेट करता है
-async def verify_user(bot, userid, token):
-    user = await bot.get_users(int(userid))
-    temp.TOKENS[user.id] = {token: True}
-    tz = pytz.timezone('Asia/Kolkata')
-    expiry = datetime.now(tz) + timedelta(seconds=VERIFY_EXPIRE)
-    date_str = expiry.strftime("%Y-%m-%d")
-    time_str = expiry.strftime("%H:%M:%S")
-    await update_verify_status(user.id, date_str, time_str)
-
-# -------------------------- CHECK USER VERIFICATION -------------------------- #
-# यह चेक करता है कि user का verification अभी भी valid है या expire हो चुका है
-async def check_verification(bot, userid):
-    user = await bot.get_users(int(userid))
-    tz = pytz.timezone("Asia/Kolkata")
-    now = datetime.now(tz)
-    current_time = time(now.hour, now.minute, now.second)
-    today = date.today()
-    status = await get_verify_status(user.id)
-    if not status:
-        return False
+    shortzy = Shortzy(api, site)
     try:
-        exp_date = datetime.strptime(status["date"], "%Y-%m-%d").date()
-        exp_time = datetime.strptime(status["time"], "%H:%M:%S").time()
+        url = await shortzy.convert(url)
     except Exception as e:
-        logger.error(f"Invalid verification time format: {e}")
-        return False
-    if exp_date < today or (exp_date == today and exp_time < current_time):
-        return False
-    return True
+        logger.error(f"Shortener Error: {e}")
+        try:
+            url = await shortzy.get_quick_link(url)
+        except Exception:
+            logger.error("Failed to generate shortlink")
+    return url
+
+# --- BACKGROUND DELETE HELPER ---
+async def auto_delete_message(message, dlt_msg):
+    """Waits 600s then deletes the verify prompt to keep chat clean."""
+    await asyncio.sleep(600)
+    try:
+        await dlt_msg.delete()
+        await message.delete()
+    except Exception:
+        pass
+        

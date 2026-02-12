@@ -1,65 +1,69 @@
 {
-  "name": "av_botz_update",
-  "description": "A Pyrogram Telegram bot to stream Telegram files to web. @bot_owner26",
+  "name": "AV-FILE-TO-LINK-PRO",
+  "description": "A Pyrogram Telegram bot to stream Telegram files to web. Updated by @BOT_OWNER26",
   "keywords": [
     "telegram",
     "stream",
     "web",
     "pyrogram",
-    "aiohttp",
-    "python",
-    "plugin",
-    "modular",
-    "media",
-    "bot"
+    "bot",
+    "av-botz"
   ],
   "repository": "https://github.com/Botsthe/AV-FILE-TO-LINK-PRO.git",
-  "success_url": "/",
   "logo": "https://i.ibb.co/v1YTMm3/icon.png",
+  "success_url": "/",
   "env": {
-    "ENV": {
-      "description": "Set this to True if you don't want the bot to crash",
-      "value": "True"
-    },
     "APP_NAME": {
-      "description": "Heroku app name (optional)"
+      "description": "Heroku app name (Required for Heroku)",
+      "required": false
     },
     "API_ID": {
-      "description": "Get this value from https://my.telegram.org"
+      "description": "Get this value from https://my.telegram.org",
+      "required": true
     },
     "API_HASH": {
-      "description": "Get this value from https://my.telegram.org"
+      "description": "Get this value from https://my.telegram.org",
+      "required": true
     },
     "BOT_TOKEN": {
-      "description": "Get this from @BotFather"
+      "description": "Get this from @BotFather",
+      "required": true
     },
     "SESSION": {
       "description": "Pyrogram session string or name",
       "value": "Webavbot"
     },
-    "BIN_CHANNEL": {
-      "description": "File store channel ID"
-    },
-    "LOG_CHANNEL": {
-      "description": "Log channel ID"
-    },
-    "PREMIUM_LOGS": {
-      "description": "Channel ID for premium logs"
-    },
-    "VERIFIED_LOG": {
-      "description": "Channel ID for verified logs"
+    "OWNER_USERNAME": {
+      "description": "Bot owner's Telegram username (Without @)",
+      "value": "BOT_OWNER26"
     },
     "ADMINS": {
-      "description": "List of admin Telegram user IDs, space separated"
+      "description": "List of admin Telegram user IDs, space separated",
+      "required": true
+    },
+    "BIN_CHANNEL": {
+      "description": "File store channel ID (Starts with -100)",
+      "required": true
+    },
+    "LOG_CHANNEL": {
+      "description": "Log channel ID (Starts with -100)",
+      "required": true
+    },
+    "PREMIUM_LOGS": {
+      "description": "Premium Logs Channel ID",
+      "required": false
+    },
+    "VERIFIED_LOG": {
+      "description": "Verified User Logs Channel ID",
+      "required": false
+    },
+    "SUPPORT_GROUP": {
+      "description": "Support Group ID",
+      "required": false
     },
     "AUTH_CHANNEL": {
-      "description": "List of allowed channel IDs (start with -100), space separated"
-    },
-    "OWNER_USERNAME": {
-      "description": "Bot owner's Telegram username"
-    },
-    "BOT_USERNAME": {
-      "description": "Bot username without @"
+      "description": "Force subscribe channels ID (Space separated, starts with -100)",
+      "required": false
     },
     "CHANNEL": {
       "description": "Public updates channel URL",
@@ -69,133 +73,101 @@
       "description": "Support group URL",
       "value": "https://t.me/AV_SUPPORT_GROUP"
     },
-    "HOW_TO_VERIFY": {
-      "description": "Link to verification guide"
+    "DATABASE_URI": {
+      "description": "MongoDB Connection URI",
+      "required": true
     },
-    "HOW_TO_OPEN": {
-      "description": "Link to file opening guide"
+    "DATABASE_NAME": {
+      "description": "MongoDB Database Name",
+      "value": "avbotz"
     },
-    "VERIFY": {
-      "description": "Enable user verification (True/False)",
-      "value": "False"
+    "IS_VERIFY": {
+      "description": "Enable 1st Verification (True/False)",
+      "value": "True"
+    },
+    "IS_SECOND_VERIFY": {
+      "description": "Enable 2nd Verification (True/False)",
+      "value": "True"
+    },
+    "IS_SHORTLINK": {
+      "description": "Enable Shortener (True/False)",
+      "value": "True"
+    },
+    "TUTORIAL_LINK_1": {
+      "description": "Video Tutorial Link for 1st Verification",
+      "required": false
+    },
+    "TUTORIAL_LINK_2": {
+      "description": "Video Tutorial Link for 2nd Verification",
+      "required": false
+    },
+    "SHORTLINK_URL": {
+      "description": "1st Shortener Domain (e.g. mdiskshortner.link)",
+      "required": false
+    },
+    "SHORTLINK_API": {
+      "description": "1st Shortener API Key",
+      "required": false
+    },
+    "SHORTENER_WEBSITE2": {
+      "description": "2nd Shortener Domain",
+      "required": false
+    },
+    "SHORTENER_API2": {
+      "description": "2nd Shortener API Key",
+      "required": false
+    },
+    "VERIFY_EXPIRE": {
+      "description": "Verification Expiry Time (in Seconds/Minutes)",
+      "value": "60"
     },
     "FSUB": {
       "description": "Enable Force Subscribe (True/False)",
       "value": "False"
     },
     "ENABLE_LIMIT": {
-      "description": "Enable file upload limits (True/False)",
-      "value": "False"
-    },
-    "BATCH_VERIFY": {
-      "description": "Enable batch file verification (True/False)",
-      "value": "False"
-    },
-    "IS_SHORTLINK": {
-      "description": "Enable shortlink creation (True/False)",
-      "value": "False"
-    },
-    "MAINTENANCE_MODE": {
-      "description": "Enable maintenance mode (True/False)",
-      "value": "False"
-    },
-    "PROTECT_CONTENT": {
-      "description": "Enable file content protection (True/False)",
-      "value": "False"
-    },
-    "PUBLIC_FILE_STORE": {
-      "description": "Make files public (True/False)",
+      "description": "Enable File Limit per user (True/False)",
       "value": "True"
     },
-    "BATCH_PROTECT_CONTENT": {
-      "description": "Enable protection for batch files (True/False)",
+    "MAINTENANCE_MODE": {
+      "description": "Enable Maintenance Mode (True/False)",
       "value": "False"
-    },
-    "SHORTLINK_URL": {
-      "description": "Shortener domain (e.g. techvjlink.site)"
-    },
-    "SHORTLINK_API": {
-      "description": "API key for shortlink generator"
-    },
-    "DATABASE_URI": {
-      "description": "MongoDB URI",
-      "required": true
-    },
-    "DATABASE_NAME": {
-      "description": "MongoDB database name",
-      "value": "Cluster0"
-    },
-    "QR_CODE": {
-      "description": "QR code image URL"
-    },
-    "VERIFY_IMG": {
-      "description": "Verification success image URL"
-    },
-    "AUTH_PICS": {
-      "description": "Authentication instruction image",
-      "value": "https://envs.sh/AwV.jpg"
-    },
-    "PICS": {
-      "description": "Default bot image",
-      "value": "https://envs.sh/b6H.jpg"
-    },
-    "FILE_CAPTION": {
-      "description": "Caption template for single file"
-    },
-    "BATCH_FILE_CAPTION": {
-      "description": "Caption template for batch file"
-    },
-    "CHANNEL_FILE_CAPTION": {
-      "description": "Caption template for channel posts"
-    },
-    "PING_INTERVAL": {
-      "description": "Ping interval (seconds)",
-      "value": "1200"
-    },
-    "SLEEP_THRESHOLD": {
-      "description": "Floodwait sleep delay (seconds)",
-      "value": "60"
-    },
-    "RATE_LIMIT_TIMEOUT": {
-      "description": "User rate limit timeout (seconds)",
-      "value": "600"
     },
     "MAX_FILES": {
       "description": "Max files allowed per user",
       "value": "10"
     },
-    "VERIFY_EXPIRE": {
-      "description": "Hours after which verification expires",
-      "value": "60"
+    "PING_INTERVAL": {
+      "description": "Ping interval (seconds)",
+      "value": "1200"
     },
-    "WORKERS": {
-      "description": "Number of async workers",
-      "value": "4"
-    },
-    "name": {
-      "description": "Bot session name",
-      "value": "File-To-Link"
+    "URL": {
+      "description": "Your App URL (Optional, auto-generated if empty)",
+      "required": false
     },
     "PORT": {
       "description": "Port number for web server",
       "value": "2626"
     },
-    "NO_PORT": {
-      "description": "Hide port in URL (True/False)",
-      "value": "False"
+    "WORKERS": {
+      "description": "Number of Async Workers",
+      "value": "4"
     },
-    "HAS_SSL": {
-      "description": "Enable HTTPS (True/False)",
-      "value": "True"
+    "QR_CODE": {
+      "description": "QR Code Image URL",
+      "required": false
     },
-    "WEB_SERVER_BIND_ADDRESS": {
-      "description": "Server bind address (Heroku = leave empty)"
+    "PICS": {
+      "description": "Bot Info Image URL",
+      "required": false
     },
-    "FQDN": {
-      "description": "Full domain name (Heroku = leave empty)"
+    "FILE_PIC": {
+      "description": "File Thumbnail Image URL",
+      "required": false
     },
-    "BAN_ALERT": {
-      "description": "Text shown to banned users"
+    "FILE_CAPTION": {
+      "description": "Custom File Caption",
+      "required": false
     }
   },
   "addons": [],
@@ -207,7 +179,7 @@
   "formation": {
     "web": {
       "quantity": 1,
-      "size": "eco"
+      "size": "basic"
     }
   }
-  }
+}
