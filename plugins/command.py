@@ -18,8 +18,7 @@ from info import (
 from plugins.utils import is_user_joined
 from plugins.batch import decode
 from web.utils import StartTime, __version__
-from plugins.check_verification import av_x_verification, verify_user_on_start
-from utils import temp, get_size, get_readable_time, auto_delete_message
+from utils import temp, get_size, get_readable_time
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +31,6 @@ async def start(client, message):
         argument = message.command[1]
     else:
         argument = None
-    if argument and argument.startswith('avbotz'):
-        await verify_user_on_start(client, message)
-        return
     is_referral = argument and argument.startswith("reff_")
     
     if FSUB and not is_referral:
@@ -158,11 +154,6 @@ async def start(client, message):
                  if not await is_user_joined(client, message):
                      return
 
-            if not await db.has_premium_access(user_id):
-                verified = await av_x_verification(client, message)
-                if not verified:
-                    return
-
             try:
                 _, start_id, end_id = decoded_data.split("-")
                 start_id = int(start_id)
@@ -218,10 +209,6 @@ async def start(client, message):
                  if not await is_user_joined(client, message):
                      return
 
-            if not await db.has_premium_access(user_id):
-                verified = await av_x_verification(client, message)
-                if not verified:
-                    return
             try:
                 _, file_id = argument.split("_", 1)
             except ValueError:
