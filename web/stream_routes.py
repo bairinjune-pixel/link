@@ -35,61 +35,7 @@ async def root_route_handler(_):
         "version": __version__,
     })
 
-# ---------------------------------------------------------------
-#  PASSWORD PROTECTED REDIRECT ROUTES (Add this at the bottom)
-# ---------------------------------------------------------------
 
-# Routes Update
-@routes.get(r"/p/{token}", allow_head=True)
-async def protected_view(request: web.Request):
-    token = request.match_info["token"]
-    data = await db.get_protected_link(token)
-    
-    if not data:
-        return web.Response(text="Link not found.", status=404)
-
-    async with aiofiles.open("web/template/password_redirect.html", mode='r') as f:
-        template_content = await f.read()
-        template = jinja2.Template(template_content)
-
-    return web.Response(
-        text=template.render(
-            token=token,
-            title=data.get("title", "Protected Link"),           # Feature 5
-            channel_link=data.get("channel_link")                # Feature 1
-        ),
-        content_type="text/html"
-    )
-
-@routes.post(r"/p/{token}")
-async def protected_verify(request: web.Request):
-    token = request.match_info["token"]
-    data = await request.post()
-    user_pass = data.get("password")
-
-    link_data = await db.get_protected_link(token)
-    
-    if not link_data:
-        return web.Response(text="Link invalid.", status=404)
-
-    if user_pass == link_data["password"]:
-        return web.HTTPFound(link_data["url"])
-    else:
-        # Error hone par bhi title/link wapas bhejna padega
-        async with aiofiles.open("web/template/password_redirect.html", mode='r') as f:
-            template_content = await f.read()
-            template = jinja2.Template(template_content)
-            
-        return web.Response(
-            text=template.render(
-                token=token,
-                error="âŒ Wrong Password!",
-                title=link_data.get("title", "Protected Link"),
-                channel_link=link_data.get("channel_link")
-            ),
-            content_type="text/html"
-        )
-        
 @routes.get(r"/watch/{path:\S+}", allow_head=True)
 async def watch_handler(request: web.Request): # Renamed to avoid name conflict
     try:
