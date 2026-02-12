@@ -50,24 +50,6 @@ AUTH_CHANNEL = [int(x) for x in auth_channel_str.split()] if auth_channel_str el
 # =========================================================
 CHANNEL = environ.get('CHANNEL', 'https://t.me/AV_BOTz_UPDATE')
 SUPPORT = environ.get('SUPPORT', 'https://t.me/AV_SUPPORT_GROUP')
-TUTORIAL_LINK_1 = environ.get('TUTORIAL_LINK_1', 'https://t.me/1')
-TUTORIAL_LINK_2 = environ.get('TUTORIAL_LINK_2', 'https://t.me/2')
-
-# =========================================================
-# 🔐 VERIFICATION & SHORTENER
-# =========================================================
-IS_VERIFY = is_enabled(environ.get("IS_VERIFY", "True"), True)
-IS_SECOND_VERIFY = is_enabled(environ.get("IS_SECOND_VERIFY", "True"), True)
-IS_SHORTLINK = is_enabled(environ.get('IS_SHORTLINK', "True"), True)
-
-# Verification Config
-VERIFY_EXPIRE = int(environ.get('VERIFY_EXPIRE', 60)) # In Minutes/Hours based on logic
-SHORTLINK_URL = environ.get('SHORTLINK_URL', 'mdiskshortner.link')
-SHORTLINK_API = environ.get('SHORTLINK_API', '96a3c0e8ae1b1abd429906762e38a40d3f2ec56c')
-
-# Second Verification Config
-SHORTLINK_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "mdiskshortner.link")
-SHORTLINK_API2 = environ.get("SHORTENER_API2", "96a3c0e8ae1b1abd429906762e38a40d3f2ec56c")
 
 # =========================================================
 # ⚙️ SETTINGS & LIMITS
@@ -90,12 +72,17 @@ BATCH_LIMIT = int(environ.get('BATCH_LIMIT', 60))
 # 🖼️ MEDIA & CAPTIONS
 # =========================================================
 QR_CODE = environ.get('QR_CODE', 'https://graph.org/file/6afb4093d5ec5c4176979.jpg')
-VERIFY_IMG = environ.get("VERIFY_IMG", "https://graph.org/file/1669ab9af68eaa62c3ca4.jpg")
 AUTH_PICS = environ.get('AUTH_PICS', 'https://envs.sh/AwV.jpg')
 PICS = environ.get('PICS', 'https://ibb.co/VpTJNNCN')
 FILE_PIC = environ.get('FILE_PIC', 'https://i.ibb.co/bj4My0bW/photo-2025-07-21-02-15-21-7529360175656861700.jpg')
 
 FILE_CAPTION = environ.get('FILE_CAPTION', script.CAPTION)
+CHANNEL_FILE_CAPTION = environ.get('CHANNEL_FILE_CAPTION', '<b>Channel:</b> <code>{}</code>\n<b>File:</b> <code>{}</code>')
+
+# =========================================================
+# 🎬 MINI APP CONFIG (Telegram WebApp for Video Streaming)
+# =========================================================
+ENABLE_MINI_APP = is_enabled(environ.get("ENABLE_MINI_APP", "True"), True)
 
 # =========================================================
 # 🌐 SERVER & APP CONFIG
