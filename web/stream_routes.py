@@ -1,23 +1,30 @@
-import re, math, logging, secrets, time, mimetypes
+import time
 from aiohttp import web
+import re
+import math
+import logging
+import secrets
+import mimetypes
 from aiohttp.http_exceptions import BadStatusLine
-from info import *
-from web.server import multi_clients, work_loads, Webavbot
-from web.server.exceptions import FIleNotFound, InvalidHash
+from web.bot import multi_clients, work_loads
+from web.server.exceptions import FileNotFound, InvalidHash
 from web.utils.custom_dl import ByteStreamer
-from utils import get_readable_time
-from web.utils import StartTime, __version__
 from web.utils.render_template import render_page
+from info import *
+from utils import temp, get_readable_time
+from web.utils import StartTime, __version__
+import aiofiles
+import jinja2
+from database.users_db import db # Apni DB import
 
 routes = web.RouteTableDef()
-class_cache = {}
 
 @routes.get("/", allow_head=True)
 async def root_route_handler(_):
     return web.json_response({
         "server_status": "running",
         "uptime": get_readable_time(time.time() - StartTime),
-        "telegram_bot": "@" + BOT_USERNAME,
+        "telegram_bot": "@" + temp.U_NAME,
         "connected_bots": len(multi_clients),
         "loads": {
             "bot" + str(i + 1): load
@@ -28,8 +35,63 @@ async def root_route_handler(_):
         "version": __version__,
     })
 
+# ---------------------------------------------------------------
+#  PASSWORD PROTECTED REDIRECT ROUTES (Add this at the bottom)
+# ---------------------------------------------------------------
+
+# Routes Update
+@routes.get(r"/p/{token}", allow_head=True)
+async def protected_view(request: web.Request):
+    token = request.match_info["token"]
+    data = await db.get_protected_link(token)
+    
+    if not data:
+        return web.Response(text="Link not found.", status=404)
+
+    async with aiofiles.open("web/template/password_redirect.html", mode='r') as f:
+        template_content = await f.read()
+        template = jinja2.Template(template_content)
+
+    return web.Response(
+        text=template.render(
+            token=token,
+            title=data.get("title", "Protected Link"),           # Feature 5
+            channel_link=data.get("channel_link")                # Feature 1
+        ),
+        content_type="text/html"
+    )
+
+@routes.post(r"/p/{token}")
+async def protected_verify(request: web.Request):
+    token = request.match_info["token"]
+    data = await request.post()
+    user_pass = data.get("password")
+
+    link_data = await db.get_protected_link(token)
+    
+    if not link_data:
+        return web.Response(text="Link invalid.", status=404)
+
+    if user_pass == link_data["password"]:
+        return web.HTTPFound(link_data["url"])
+    else:
+        # Error hone par bhi title/link wapas bhejna padega
+        async with aiofiles.open("web/template/password_redirect.html", mode='r') as f:
+            template_content = await f.read()
+            template = jinja2.Template(template_content)
+            
+        return web.Response(
+            text=template.render(
+                token=token,
+                error="âŒ Wrong Password!",
+                title=link_data.get("title", "Protected Link"),
+                channel_link=link_data.get("channel_link")
+            ),
+            content_type="text/html"
+        )
+        
 @routes.get(r"/watch/{path:\S+}", allow_head=True)
-async def stream_watch_handler(request: web.Request):
+async def watch_handler(request: web.Request): # Renamed to avoid name conflict
     try:
         path = request.match_info["path"]
         match = re.search(r"^([a-zA-Z0-9_-]{6})(\d+)$", path)
@@ -44,13 +106,15 @@ async def stream_watch_handler(request: web.Request):
         )
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
+    except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
-        return web.Response(status=400, text="Bad Request")
+        # FIX: Return a response instead of passing
+        return web.Response(status=400, text="Connection Error")
     except Exception as e:
-        logging.critical(e)
-        return web.Response(status=500, text=str(e))
+        logging.critical(e.with_traceback(None))
+        raise web.HTTPInternalServerError(text=str(e))
+
 
 @routes.get(r"/{path:\S+}", allow_head=True)
 async def stream_handler(request: web.Request):
@@ -66,85 +130,97 @@ async def stream_handler(request: web.Request):
         return await media_streamer(request, id, secure_hash)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
-    except FIleNotFound as e:
+    except FileNotFound as e:
         raise web.HTTPNotFound(text=e.message)
     except (AttributeError, BadStatusLine, ConnectionResetError):
-        return web.Response(status=400, text="Bad Request")
+        # FIX: Return a response instead of passing
+        return web.Response(status=400, text="Connection Error")
     except Exception as e:
-        logging.critical(e)
-        return web.Response(status=500, text=str(e))
+        logging.critical(e.with_traceback(None))
+        raise web.HTTPInternalServerError(text=str(e))
+        
+class_cache = {}
+
 
 async def media_streamer(request: web.Request, id: int, secure_hash: str):
-    range_header = request.headers.get("Range", None)
+    range_header = request.headers.get("Range", 0)
 
     index = min(work_loads, key=work_loads.get)
     faster_client = multi_clients[index]
 
     if MULTI_CLIENT:
-        logging.info(f"📡 Client {index} is now serving: {request.remote}")
+        logging.info(f"Client {index} is now serving {request.remote}")
 
-    tg_connect = class_cache.get(faster_client) or ByteStreamer(faster_client)
-    class_cache[faster_client] = tg_connect
-
+    if faster_client in class_cache:
+        tg_connect = class_cache[faster_client]
+        logging.debug(f"Using cached ByteStreamer object for client {index}")
+    else:
+        logging.debug(f"Creating new ByteStreamer object for client {index}")
+        tg_connect = ByteStreamer(faster_client)
+        class_cache[faster_client] = tg_connect
+    logging.debug("before calling get_file_properties")
     file_id = await tg_connect.get_file_properties(id)
+    logging.debug("after calling get_file_properties")
 
     if file_id.unique_id[:6] != secure_hash:
+        logging.debug(f"Invalid hash for message with ID {id}")
         raise InvalidHash
 
     file_size = file_id.file_size
 
     if range_header:
-        try:
-            match = re.match(r"bytes=(\d+)-(\d*)", range_header)
-            from_bytes = int(match.group(1))
-            until_bytes = int(match.group(2)) if match.group(2) else file_size - 1
-        except Exception:
-            return web.Response(status=400, text="Invalid Range header")
+        from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
+        from_bytes = int(from_bytes)
+        until_bytes = int(until_bytes) if until_bytes else file_size - 1
     else:
-        from_bytes = 0
-        until_bytes = file_size - 1
+        from_bytes = request.http_range.start or 0
+        until_bytes = (request.http_range.stop or file_size) - 1
 
-    # Validate range
-    if until_bytes >= file_size or from_bytes < 0 or until_bytes < from_bytes:
+    if (until_bytes > file_size) or (from_bytes < 0) or (until_bytes < from_bytes):
         return web.Response(
             status=416,
-            text="416: Range Not Satisfiable",
-            headers={"Content-Range": f"bytes */{file_size}"}
+            body="416: Range not satisfiable",
+            headers={"Content-Range": f"bytes */{file_size}"},
         )
 
-    # Setup stream vars
     chunk_size = 1024 * 1024
+    until_bytes = min(until_bytes, file_size - 1)
+
     offset = from_bytes - (from_bytes % chunk_size)
     first_part_cut = from_bytes - offset
     last_part_cut = until_bytes % chunk_size + 1
-    part_count = math.ceil(until_bytes / chunk_size) - math.floor(offset / chunk_size)
+
     req_length = until_bytes - from_bytes + 1
-
-    mime_type = file_id.mime_type or "application/octet-stream"
-    file_name = file_id.file_name or f"{secrets.token_hex(2)}.bin"
-
-    response = web.StreamResponse(
-        status=206 if range_header else 200,
-        reason="Partial Content" if range_header else "OK",
-        headers={
-            "Content-Type": mime_type,
-            "Content-Length": str(req_length),
-            "Content-Range": f"bytes {from_bytes}-{until_bytes}/{file_size}",
-            "Content-Disposition": f'inline; filename="{file_name}"',
-            "Accept-Ranges": "bytes",
-        }
+    part_count = math.ceil(until_bytes / chunk_size) - math.floor(offset / chunk_size)
+    body = tg_connect.yield_file(
+        file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
     )
 
-    await response.prepare(request)
+    mime_type = file_id.mime_type
+    file_name = file_id.file_name
+    disposition = "attachment"
 
-    try:
-        async for chunk in tg_connect.yield_file(
-            file_id, index, offset, first_part_cut, last_part_cut, part_count, chunk_size
-        ):
-            await response.write(chunk)
-    except Exception as e:
-        logging.exception(f"Error streaming file {file_id.file_unique_id}: {e}")
-    finally:
-        await response.write_eof()
+    if mime_type:
+        if not file_name:
+            try:
+                file_name = f"{secrets.token_hex(2)}.{mime_type.split('/')[1]}"
+            except (IndexError, AttributeError):
+                file_name = f"{secrets.token_hex(2)}.unknown"
+    else:
+        if file_name:
+            mime_type = mimetypes.guess_type(file_id.file_name)
+        else:
+            mime_type = "application/octet-stream"
+            file_name = f"{secrets.token_hex(2)}.unknown"
 
-    return response
+    return web.Response(
+        status=206 if range_header else 200,
+        body=body,
+        headers={
+            "Content-Type": f"{mime_type}",
+            "Content-Range": f"bytes {from_bytes}-{until_bytes}/{file_size}",
+            "Content-Length": str(req_length),
+            "Content-Disposition": f'{disposition}; filename="{file_name}"',
+            "Accept-Ranges": "bytes",
+        },
+)
