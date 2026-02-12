@@ -5,10 +5,12 @@ from database.users_db import db
 from info import PREMIUM_LOGS
 from pyrogram import Client
 from .stream_routes import routes
+from .miniapp_routes import routes as miniapp_routes
 
 async def web_server():
     web_app = web.Application(client_max_size=30000000)
     web_app.add_routes(routes)
+    web_app.add_routes(miniapp_routes)
     return web_app
     
 REMINDER_TIMES = [
