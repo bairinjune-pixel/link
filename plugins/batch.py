@@ -1,138 +1,129 @@
-import os
-import re
-import json
 import base64
-from struct import pack
-from pyrogram import Client, filters
-from pyrogram.types import Message
+import traceback
+from pyrogram import Client, filters, enums
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import FloodWait
+import asyncio
 from utils import temp
-from pyrogram.errors import ChannelInvalid, UsernameInvalid, UsernameNotModified
-from pyrogram.file_id import FileId
-from info import LOG_CHANNEL, ADMINS, PUBLIC_FILE_STORE, BOT_USERNAME
+from info import BATCH_LIMIT, BIN_CHANNEL, LOG_CHANNEL
 
-async def allowed(_, __, message):
-    if PUBLIC_FILE_STORE:
-        return True
-    if message.from_user and message.from_user.id in ADMINS:
-        return True
-    return False
-    
-# ✅ FileId Encoding Helpers
-def encode_file_id(s: bytes) -> str:
-    r = b""
-    n = 0
-    for i in s + bytes([22]) + bytes([4]):
-        if i == 0:
-            n += 1
-        else:
-            if n:
-                r += b"\x00" + bytes([n])
-                n = 0
-            r += bytes([i])
-    return base64.urlsafe_b64encode(r).decode().rstrip("=")
+def encode(string):
+    string_bytes = string.encode("ascii")
+    base64_bytes = base64.urlsafe_b64encode(string_bytes)
+    return base64_bytes.decode("ascii").rstrip("=")
 
-def encode_file_ref(file_ref: bytes) -> str:
-    return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
+def decode(base64_string):
+    try:
+        base64_string = base64_string.strip()
+        padding = len(base64_string) % 4
+        if padding:
+            base64_string += "=" * (4 - padding)
+        base64_bytes = base64.urlsafe_b64decode(base64_string)
+        return base64_bytes.decode("ascii")
+    except:
+        return None
+        
+def get_link_data(link):
+    if "t.me/c/" in link:
+        parts = link.split("/")
+        chat_id = int("-100" + parts[-2])
+        msg_id = int(parts[-1])
+        return chat_id, msg_id
+    return None, None
 
-def unpack_new_file_id(new_file_id: str):
-    decoded = FileId.decode(new_file_id)
-    file_id = encode_file_id(
-        pack(
-            "<iiqq",
-            int(decoded.file_type),
-            decoded.dc_id,
-            decoded.media_id,
-            decoded.access_hash
-        )
-    )
-    file_ref = encode_file_ref(decoded.file_reference)
-    return file_id, file_ref
+@Client.on_message(filters.command("batch") & filters.private)
+async def batch_handler(client: Client, message: Message):
+    if len(message.command) < 3:
+        return await message.reply_text(
+                   "❌ USAGE: /batch <first_post_link> <last_post_link>",
+                   parse_mode=enums.ParseMode.HTML
+               )
 
+    status_msg = await message.reply_text("⚙️ **ᴄʜᴇᴄᴋɪɴɢ ʀᴀɴɢᴇ....**")
 
-# ✅ BATCH HANDLER
-@Client.on_message(filters.command(['batch']) & filters.create(allowed))
-async def gen_link_batch(bot, message: Message):
-    if " " not in message.text:
-        return await message.reply("Use correct format.\nExample <code>/batch https://t.me/AV_BOTz_UPDATE/10 https://t.me/AV_BOTz_UPDATE/20</code>.")
-    
-    links = message.text.strip().split(" ")
-    if len(links) != 3:
-        return await message.reply("Use correct format.\nExample <code>/batch https://t.me/AV_BOTz_UPDATE/10 https://t.me/AV_BOTz_UPDATE/20</code>.")
-    
-    cmd, first, last = links
-    regex = re.compile(r"(https://)?(t\.me|telegram\.me|telegram\.dog)/(c/)?([\d\w_]+)/(\d+)")
-    
-    match = regex.match(first)
-    if not match:
-        return await message.reply("Invalid link")
-    
-    f_chat_id = match.group(4)
-    f_msg_id = int(match.group(5))
-    if f_chat_id.isnumeric():
-        f_chat_id = int("-100" + f_chat_id)
-
-    match = regex.match(last)
-    if not match:
-        return await message.reply("Invalid link")
-    
-    l_chat_id = match.group(4)
-    l_msg_id = int(match.group(5))
-    if l_chat_id.isnumeric():
-        l_chat_id = int("-100" + l_chat_id)
-
-    if f_chat_id != l_chat_id:
-        return await message.reply("Chat ids not matched.")
+    link1 = message.command[1]
+    link2 = message.command[2]
+    user = message.from_user
 
     try:
-        chat_id = (await bot.get_chat(f_chat_id)).id
-    except ChannelInvalid:
-        return await message.reply("This may be a private channel / group. Make me an admin there.")
-    except (UsernameInvalid, UsernameNotModified):
-        return await message.reply("Invalid Link specified.")
-    except Exception as e:
-        return await message.reply(f"Errors - {e}")
+        chat_id1, msg_id1 = get_link_data(link1)
+        chat_id2, msg_id2 = get_link_data(link2)
 
-    sts = await message.reply("Generating link for your message. This may take time...")
+        if chat_id1 != chat_id2:
+             return await status_msg.edit("❌ **Eʀʀᴏʀ:** Dᴏɴᴏ ʟɪɴᴋ sᴀᴍᴇ ᴄʜᴀɴɴᴇʟ ᴋᴇ ʜᴏɴᴇ ᴄʜᴀʜɪʏᴇ.")
 
-    # ✅ Begin media extraction
-    FRMT = "Generating Link...\nTotal Messages: `{total}`\nDone: `{current}`\nRemaining: `{rem}`\nStatus: `{sts}`"
-    outlist = []
-    og_msg = 0
-    tot = 0
+        start_id = min(msg_id1, msg_id2)
+        end_id = max(msg_id1, msg_id2)
+        total_files = end_id - start_id + 1
 
-    async for msg in bot.iter_messages(f_chat_id, l_msg_id, f_msg_id):
-        tot += 1
-        if msg.empty or msg.service or not msg.media:
-            continue
-        try:
-            file_type = msg.media
-            file = getattr(msg, file_type.value)
-            caption = getattr(msg, 'caption', '')
-            if caption:
-                caption = caption.html
-            if file:
-                outlist.append({
-                    "file_id": file.file_id,
-                    "caption": caption,
-                    "title": getattr(file, "file_name", ""),
-                    "size": file.file_size,
-                    "protect": cmd.lower().strip() == "/pbatch",
-                })
-                og_msg += 1
-        except Exception:
-            pass
-        if not og_msg % 20:
+        if total_files > BATCH_LIMIT:
+            return await status_msg.edit(
+                f"❌ **Lɪᴍɪᴛ Exᴄᴇᴇᴅᴇᴅ!**\n\n"
+                f"⚠️ Aᴀᴘ ᴇᴋ ʙᴀᴀʀ ᴍᴇɪɴ sɪʀғ **{BATCH_LIMIT} ғɪʟᴇs** ᴋᴀ ʙᴀᴛᴄʜ ʙᴀɴᴀ sᴀᴋᴛᴇ ʜᴀɪɴ.\n"
+                f"🔢 Aᴀᴘɴᴇ **{total_files} ᴍᴇssᴀɢᴇs** sᴇʟᴇᴄᴛ ᴋɪʏᴇ ʜᴀɪɴ."
+            )
+
+        await status_msg.edit(f"🔄 **Pʀᴏᴄᴇssɪɴɢ {total_files} ғɪʟᴇs...**")
+
+        bin_ids = []
+
+        for i in range(start_id, end_id + 1):
             try:
-                await sts.edit(FRMT.format(total=l_msg_id - f_msg_id, current=tot, rem=(l_msg_id - f_msg_id - tot), sts="Saving..."))
-            except:
-                pass
+                msg = await client.get_messages(chat_id1, i)
+                if msg and not msg.empty:
+                    if msg.document or msg.video or msg.audio:
+                        fwd_msg = await msg.forward(BIN_CHANNEL)
+                        bin_ids.append(fwd_msg.id)
+                        await asyncio.sleep(1) 
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+            except Exception:
+                continue
 
-    filename = f"batchmode_{message.from_user.id}.json"
-    with open(filename, "w") as out:
-        json.dump(outlist, out)
+        if not bin_ids:
+            return await status_msg.edit("❌ **Nᴏ ᴍᴇᴅɪᴀ ғᴏᴜɴᴅ ɪɴ ʀᴀɴɢᴇ.**")
 
-    post = await bot.send_document(LOG_CHANNEL, filename, file_name="Batch.json", caption="⚠️Generated for filestore.")
-    os.remove(filename)
+        first_bin_id = bin_ids[0]
+        last_bin_id = bin_ids[-1]
 
-    file_id, ref = unpack_new_file_id(post.document.file_id)
-    await sts.edit(f"Here is your link\nContains `{og_msg}` files.\nhttps://t.me/{BOT_USERNAME}?start=BATCH-{file_id}")
+        # Encrypt Payload
+        raw_payload = f"batch-{first_bin_id}-{last_bin_id}"
+        encoded_payload = encode(raw_payload)
+        
+        link = f"https://t.me/{temp.U_NAME}?start={encoded_payload}"
+        
+        # User ko success message bhejna
+        await status_msg.edit(
+            f"🔐 **Bᴀᴛᴄʜ Lɪɴᴋ Cʀᴇᴀᴛᴇᴅ!**\n\n"
+            f"📂 **Fɪʟᴇs:** {len(bin_ids)}\n"
+            f"⚠️ **Lɪᴍɪᴛ:** Mᴀx {BATCH_LIMIT} ғɪʟᴇs ᴘᴇʀ ʟɪɴᴋ\n\n"
+            f"🔗 **Lɪɴᴋ:** {link}"
+        )
+        
+        try:
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=f"#BATCH_SAVE:\n\n👤 User: {user.mention} (`{user.id}`)\n🔢 Files: {len(bin_ids)}\n🔗 Generated Batch Link!",
+                disable_web_page_preview=True,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📂 Open Link", url=link)]])
+            )
+        except Exception as e:
+            print(f"Failed to send log: {e}")
+
+    except Exception as e:
+        await status_msg.edit(f"❌ Error: {e}")
+
+        try:
+            error_traceback = traceback.format_exc()
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=(
+                    f"#BATCH_ERROR:\n\n"
+                    f"👤 **User:** {user.mention} (`{user.id}`)\n"
+                    f"❌ **Error:** `{e}`\n\n"
+                    f"📜 **Traceback:**\n`{error_traceback[:1000]}`"
+                )
+            )
+        except Exception as log_error:
+            print(f"Could not send error log: {log_error}")
+            

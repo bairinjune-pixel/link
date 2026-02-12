@@ -2,22 +2,18 @@ import time
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import FloodWait
-from info import URL, BOT_USERNAME, BIN_CHANNEL, CHANNEL, PROTECT_CONTENT, FSUB, MAX_FILES
+from info import URL, BIN_CHANNEL, CHANNEL, FSUB, MAX_FILES
 from database.users_db import db
 from web.utils.file_properties import get_hash
-from utils import get_size
-from plugins.avbot import av_verification, is_user_allowed, is_user_joined
+from utils import temp, get_size
+from plugins.utils import is_user_allowed, is_user_joined
 from Script import script
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio), group=4)
 async def private_receive_handler(c: Client, m: Message):                    
     user_id = m.from_user.id
-
-    # ✅ Force subscription check
     if FSUB and not await is_user_joined(c, m): 
         return
-
-    # 🔒 User Ban Check
     is_banned = await db.is_user_blocked(user_id)
     if is_banned:
         user_data = await db.get_block_data(user_id)
@@ -34,25 +30,16 @@ async def private_receive_handler(c: Client, m: Message):
                 quote=True
             )
             return
-
     file_id = m.document or m.video or m.audio
     file_name = file_id.file_name if file_id.file_name else f"AV_File_{int(time.time())}.mkv"
     file_size = get_size(file_id.file_size)
-
-    if not await db.has_premium_access(user_id):
-        verified = await av_verification(c, m)
-        if not verified:
-            return
-
     try:
         forwarded = await m.forward(chat_id=BIN_CHANNEL)
         hash_str = get_hash(forwarded)
         stream = f"{URL}watch/{forwarded.id}/AV_File_{int(time.time())}.mkv?hash={hash_str}"
         download = f"{URL}{forwarded.id}?hash={hash_str}"
-        file_link = f"https://t.me/{BOT_USERNAME}?start=file_{forwarded.id}"
+        file_link = f"https://t.me/{temp.U_NAME}?start=file_{forwarded.id}"
         share_link = f"https://t.me/share/url?url={file_link}"
-
-        # ✅ Save file in MongoDB
         await db.files.insert_one({
             "user_id": user_id,
             "file_name": file_name,
@@ -75,9 +62,8 @@ async def private_receive_handler(c: Client, m: Message):
                 [InlineKeyboardButton("• ꜱᴛʀᴇᴀᴍ •", url=stream),
                  InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download)],
                 [InlineKeyboardButton("• ɢᴇᴛ ғɪʟᴇ •", url=file_link),
-                 InlineKeyboardButton("• ꜱʜᴀʀᴇ•", url=share_link)],
-                [InlineKeyboardButton("• ᴅᴇʟᴇᴛᴇ ғɪʟᴇ •", callback_data=f"deletefile_{forwarded.id}"),
-                 InlineKeyboardButton("• ᴄʟᴏꜱᴇ •", callback_data="close_data")]
+                 InlineKeyboardButton("• ᴅᴇʟᴇᴛᴇ ғɪʟᴇ •", callback_data=f"deletefile_{forwarded.id}")],
+                [InlineKeyboardButton("• ᴄʟᴏꜱᴇ •", callback_data="close_data")]
             ])
         )
 
