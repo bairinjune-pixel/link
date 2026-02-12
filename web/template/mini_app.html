@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ file_name }} - AV Stream</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --tg-color-scheme: light;
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-button-color: #31a24c;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-accent-color: #0088cc;
+            --safe-area-inset-top: 0px;
+            --primary-color: #0088cc;
+            --secondary-color: #31a24c;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            padding-top: var(--safe-area-inset-top);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-container {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        .controls-panel {
+            background: var(--tg-theme-bg-color);
+            border-top: 1px solid #e0e0e0;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--tg-theme-text-color);
+        }
+
+        select {
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-download {
+            background-color: var(--secondary-color);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-download:active {
+            opacity: 0.9;
+            transform: scale(0.98);
+        }
+
+        .btn-action {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-action:active {
+            opacity: 0.9;
+            transform: scale(0.98);
+        }
+
+        .info-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .info-label {
+            color: #666;
+        }
+
+        .info-value {
+            font-weight: 500;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .status-message {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .status-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .status-loading {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .plyr {
+            --plyr-color-main: var(--primary-color);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (min-width: 600px) {
+            .button-group {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+
+            .btn-download {
+                grid-column: span 3;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="player-container">
+            <video id="videoPlayer" playsinline controls>
+                <source src="{{ stream_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="controls-panel">
+            <div id="statusMessage" class="status-message hidden"></div>
+
+            <div class="control-group" id="audioContainer" style="display: none;">
+                <label class="control-label">🔊 Audio Track</label>
+                <select id="audioSelect">
+                    <option value="">Default Audio</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="subtitleContainer" style="display: none;">
+                <label class="control-label">📝 Subtitles</label>
+                <select id="subtitleSelect">
+                    <option value="">No Subtitles</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-action" id="shareBtn" onclick="shareVideo()">
+                    📤 Share
+                </button>
+                <button class="btn btn-action" id="fullscreenBtn" onclick="toggleFullscreen()">
+                    ⛶ Fullscreen
+                </button>
+                <a id="downloadBtn" class="btn btn-download" href="{{ download_url }}" download="{{ file_name }}">
+                    ⬇️ Download
+                </a>
+            </div>
+
+            <div class="info-section">
+                <div class="info-item">
+                    <span class="info-label">Filename:</span>
+                    <span class="info-value">{{ file_name }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Size:</span>
+                    <span class="info-value">{{ file_size }}</span>
+                </div>
+                {% if duration %}
+                <div class="info-item">
+                    <span class="info-label">Duration:</span>
+                    <span class="info-value">{{ duration }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        if (tg.isVersionAtLeast(6.1)) {
+            tg.setHeaderColor('secondary_bg_color');
+        }
+
+        const fileId = "{{ file_id }}";
+        const fileHash = "{{ file_hash }}";
+        let player = null;
+        let audioTracks = [];
+        let subtitleTracks = [];
+
+        // Initialize Plyr Video Player
+        function initializePlayer() {
+            player = new Plyr('#videoPlayer', {
+                controls: [
+                    'play-large',
+                    'play',
+                    'progress',
+                    'current-time',
+                    'duration',
+                    'mute',
+                    'volume',
+                    'settings',
+                    'pip',
+                    'fullscreen'
+                ],
+                settings: ['quality', 'speed'],
+                quality: { default: 720, options: [360, 720, 1080] }
+            });
+
+            player.on('play', function() {
+                showStatus('Playing...', 'loading');
+            });
+
+            player.on('pause', function() {
+                showStatus('Paused', 'info');
+            });
+
+            // Auto-hide status after 3 seconds
+            setTimeout(() => hideStatus(), 3000);
+        }
+
+        // Fetch file metadata (audio tracks, subtitles, duration)
+        async function fetchMetadata() {
+            try {
+                const response = await fetch(`/api/metadata/${fileId}?hash=${fileHash}`);
+                if (!response.ok) throw new Error('Failed to fetch metadata');
+                
+                const data = await response.json();
+                
+                // Load audio tracks
+                if (data.audio_tracks && data.audio_tracks.length > 0) {
+                    audioTracks = data.audio_tracks;
+                    loadAudioTracks();
+                }
+
+                // Load subtitles
+                if (data.subtitles && data.subtitles.length > 0) {
+                    subtitleTracks = data.subtitles;
+                    loadSubtitles();
+                }
+
+                showStatus('Ready to play', 'success');
+            } catch (error) {
+                console.error('Metadata fetch error:', error);
+                showStatus('Some features unavailable', 'info');
+            }
+        }
+
+        // Load audio tracks into selector
+        function loadAudioTracks() {
+            const container = document.getElementById('audioContainer');
+            const select = document.getElementById('audioSelect');
+            
+            audioTracks.forEach((track, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = track.language || track.name || `Audio ${index + 1}`;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', (e) => switchAudioTrack(parseInt(e.target.value)));
+            container.style.display = 'block';
+        }
+
+        // Load subtitles into selector
+        function loadSubtitles() {
+            const container = document.getElementById('subtitleContainer');
+            const select = document.getElementById('subtitleSelect');
+            
+            subtitleTracks.forEach((track, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = track.language || track.name || `Subtitle ${index + 1}`;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', (e) => switchSubtitle(parseInt(e.target.value)));
+            container.style.display = 'block';
+        }
+
+        // Switch audio track
+        async function switchAudioTrack(index) {
+            if (index < 0) return;
+            
+            const track = audioTracks[index];
+            try {
+                // In a real implementation, you would switch the actual audio track
+                // For now, show a message
+                showStatus(`Switched to: ${track.language || track.name}`, 'success');
+            } catch (error) {
+                showStatus('Failed to switch audio track', 'error');
+            }
+        }
+
+        // Switch subtitle
+        async function switchSubtitle(index) {
+            if (index < 0) {
+                // Remove subtitles
+                const video = document.getElementById('videoPlayer');
+                Array.from(video.querySelectorAll('track')).forEach(t => t.remove());
+                return;
+            }
+
+            const track = subtitleTracks[index];
+            try {
+                const video = document.getElementById('videoPlayer');
+                // Remove old subtitle tracks
+                Array.from(video.querySelectorAll('track')).forEach(t => t.remove());
+                
+                // Add new subtitle track
+                const trackElement = document.createElement('track');
+                trackElement.kind = 'subtitles';
+                trackElement.srclang = track.language || 'en';
+                trackElement.label = track.language || track.name || 'Subtitle';
+                trackElement.src = track.url;
+                trackElement.default = true;
+                video.appendChild(trackElement);
+
+                showStatus(`Subtitle: ${track.language || track.name}`, 'success');
+            } catch (error) {
+                showStatus('Failed to load subtitle', 'error');
+            }
+        }
+
+        // Share video
+        function shareVideo() {
+            if (tg.isVersionAtLeast(6.1) && navigator.share) {
+                navigator.share({
+                    title: '{{ file_name }}',
+                    text: 'Check out this video',
+                    url: window.location.href
+                }).catch(err => console.log('Share error:', err));
+            } else {
+                // Fallback: Copy link to clipboard
+                const link = window.location.href;
+                navigator.clipboard.writeText(link).then(() => {
+                    showStatus('Link copied to clipboard!', 'success');
+                }).catch(err => {
+                    showStatus('Failed to copy link', 'error');
+                });
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (player) {
+                player.fullscreen.toggle();
+            } else {
+                const video = document.getElementById('videoPlayer');
+                if (video.requestFullscreen) {
+                    video.requestFullscreen();
+                }
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const element = document.getElementById('statusMessage');
+            element.textContent = message;
+            element.className = `status-message status-${type}`;
+            element.classList.remove('hidden');
+        }
+
+        // Hide status message
+        function hideStatus() {
+            const element = document.getElementById('statusMessage');
+            element.classList.add('hidden');
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initializePlayer();
+            fetchMetadata();
+        });
+
+        // Handle Telegram Close Button
+        tg.onEvent('closeClicked', function() {
+            tg.close();
+        });
+
+        // Update theme if user changes theme
+        tg.onEvent('themeChanged', function() {
+            updateTheme();
+        });
+
+        function updateTheme() {
+            const scheme = tg.colorScheme;
+            document.documentElement.style.setProperty('--tg-color-scheme', scheme);
+        }
+    </script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+</body>
+</html>
