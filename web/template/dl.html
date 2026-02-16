@@ -1,84 +1,279 @@
-<!-- Dont Remove My Credit @AV_BOTz_UPDATE -->
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Download your Telegram files with AV Botz."/>
-  <meta property="og:title" content="{{ file_name }}" />
-  <meta property="og:description" content="Secure file download powered by AV Botz" />
-  <meta property="og:url" content="{{ file_url }}" />
-  <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://cdn.jsdelivr.net/gh/Botsthe/DATABASE@main/image/live.png"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta property="og:title" content="{{ file_name }}" />
+<meta property="og:description" content="Secure file download" />
+<meta property="og:type" content="website" />
+<title>{{ file_name }}</title>
 
-  <title>{{ file_name }} | AV Botz</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .box {
-      background: #1c1c1c;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px #0ff;
-      text-align: center;
-    }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 10px;
-      color: #00ffff;
-    }
-    p {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    .download-btn {
-      margin-top: 15px;
-      background: #00ffff;
-      color: #000;
-      text-decoration: none;
-      padding: 10px 20px;
-      font-weight: bold;
-      border-radius: 8px;
-      transition: background 0.3s ease;
-      display: inline-block;
-    }
-    .download-btn:hover {
-      background: #00b3b3;
-    }
-    .footer {
-      margin-top: 30px;
-      font-size: 12px;
-      color: #aaa;
-    }
-    .footer a {
-      color: #0ff;
-      text-decoration: none;
-    }
-  </style>
+<style>
+:root{ --accent:#e50914; }
+
+html,body{
+  margin:0;
+  padding:0;
+  background:#000;
+  font-family:'Montserrat',sans-serif;
+  color:white;
+  overflow-x:hidden;
+  transition:background .6s ease, color .6s ease;
+}
+
+#intro{
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  text-align:center;
+}
+
+.intro-text{
+  font-family:'Orbitron',sans-serif;
+  font-weight:900;
+  font-size:clamp(26px,9vw,80px);
+  letter-spacing:clamp(3px,1.8vw,12px);
+  text-transform:uppercase;
+  opacity:0;
+  transform:scale(.9);
+  animation:titleReveal 3s cubic-bezier(.77,0,.18,1) forwards;
+  position:relative;
+}
+
+@keyframes titleReveal{
+  0%{opacity:0;transform:scale(.9) translateY(20px);filter:blur(6px);}
+  40%{opacity:1;transform:scale(1) translateY(0);filter:blur(0);}
+  100%{text-shadow:0 0 40px rgba(229,9,20,.8),0 0 80px rgba(229,9,20,.4);}
+}
+
+.fade-out{ animation:fadeOut 1s ease forwards; }
+@keyframes fadeOut{ to{opacity:0;visibility:hidden;} }
+
+.navbar{
+  position:fixed;
+  top:0; left:0; right:0;
+  height:70px;
+  display:flex;
+  align-items:center;
+  padding:0 40px;
+  background:linear-gradient(to bottom, rgba(0,0,0,.95), transparent);
+  z-index:50;
+}
+
+.nav-left{
+  font-family:'Orbitron',sans-serif;
+  font-weight:800;
+  letter-spacing:3px;
+  position:relative;
+  cursor:pointer;
+}
+
+.nav-left:hover{
+  color:var(--accent);
+  text-shadow:0 0 10px rgba(229,9,20,.6);
+}
+
+button{
+  background:rgba(255,255,255,.1);
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  transition:all .3s ease;
+}
+
+button:hover{
+  background:rgba(229,9,20,.25);
+  box-shadow:0 0 15px rgba(229,9,20,.5);
+  transform:translateY(-2px);
+}
+
+#bg{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+}
+
+.main-wrapper{
+  position:relative;
+  z-index:10;
+  padding-top:100px;
+  padding-bottom:80px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+}
+
+.section-box{
+  width:88vw;
+  max-width:600px;
+  margin-top:30px;
+  padding:40px;
+  border-radius:20px;
+  background:rgba(255,255,255,.05);
+  backdrop-filter:blur(20px);
+  text-align:center;
+  word-wrap:break-word;
+}
+
+.file-buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:20px;
+}
+
+body.light-mode{
+  background:#f4f4f4;
+  color:#111;
+}
+
+body.light-mode .section-box{
+  background:rgba(255,255,255,.85);
+}
+
+body.light-mode button{
+  background:rgba(0,0,0,.05);
+  color:#000;
+}
+
+.theme-toggle{
+  position:fixed;
+  top:18px;
+  right:18px;
+  z-index:60;
+  font-size:18px;
+  width:32px;
+  height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:none;
+  cursor:pointer;
+  color:#ffffff !important;
+}
+
+.file-info{
+  font-size:14px;
+  opacity:.8;
+  margin:15px 0;
+}
+</style>
 </head>
 <body>
-  <div class="box">
-    <h1>{{ file_name }}</h1>
-    <p><strong>Size:</strong> {{ file_size }}</p>
-    <p><strong>Unique ID:</strong> {{ file_unique_id }}</p>
 
-    <a class="download-btn" href="{{ file_url }}" download="{{ file_name }}">⬇ Download File</a>
+<div id="intro">
+  <div class="intro-text">DOWNLOAD</div>
+</div>
+
+<div class="navbar">
+  <div class="nav-left">FILE SERVER</div>
+</div>
+
+<canvas id="bg"></canvas>
+
+<div class="theme-toggle" id="themeIcon">✧</div>
+
+<div class="main-wrapper">
+
+  <div class="section-box">
+    <h2>{{ file_name }}</h2>
+    <div class="file-info">
+      <p><strong>Size:</strong> {{ file_size }}</p>
+    </div>
+    <div class="file-buttons">
+      <button onclick="downloadFile()">Dᴏᴡɴʟᴏᴀᴅ</button>
+      <button onclick="copyLink()">Cᴏᴘʏ ʟɪɴᴋ</button>
+    </div>
   </div>
 
-  <div class="footer">
-    <p>{{ disclaimer }}</p>
-    <p><a href="{{ report_link }}">Report File</a> | Template by <b>@AV_BOTz_UPDATE</b></p>
-  </div>
+</div>
+
+<script>
+
+window.addEventListener("load",()=>{
+  setTimeout(()=>{document.getElementById("intro").classList.add("fade-out");},3800);
+});
+
+const canvas=document.getElementById("bg");
+const ctx=canvas.getContext("2d");
+let W,H;
+
+function resize(){
+  W=canvas.width=window.innerWidth;
+  H=canvas.height=window.innerHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+let stars=[];
+for(let i=0;i<250;i++){
+  stars.push({
+    x:Math.random()*W,
+    y:Math.random()*H,
+    z:Math.random()*1.5+0.5
+  });
+}
+
+function renderBG(){
+  requestAnimationFrame(renderBG);
+  ctx.clearRect(0,0,W,H);
+
+  const isLight=document.body.classList.contains("light-mode");
+
+  stars.forEach(s=>{
+    ctx.fillStyle=isLight
+      ? "rgba(0,0,0,"+(0.15*s.z)+")"
+      : "rgba(255,255,255,"+(0.3*s.z)+")";
+
+    ctx.fillRect(s.x,s.y,2*s.z,2*s.z);
+
+    s.y+=0.08*s.z;
+    if(s.y>H){
+      s.y=0;
+      s.x=Math.random()*W;
+    }
+  });
+}
+
+renderBG();
+
+const themeIcon=document.getElementById("themeIcon");
+themeIcon.onclick=()=>{
+  document.body.classList.toggle("light-mode");
+  themeIcon.textContent=document.body.classList.contains("light-mode")?"☀":"✧";
+};
+
+const fileUrl="{{ file_url }}";
+const fileName="{{ file_name }}";
+
+function downloadFile(){
+  const a=document.createElement("a");
+  a.href=fileUrl;
+  a.download=fileName;
+  a.click();
+}
+
+function copyLink(){
+  const link=window.location.href;
+  navigator.clipboard.writeText(link).then(()=>{
+    alert("Link copied!");
+  }).catch(err=>console.error(err));
+}
+
+</script>
+
 </body>
 </html>
