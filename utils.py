@@ -83,4 +83,4 @@ def get_readable_time(seconds: int) -> str:
         time_list.append(f"{int(result)}{time_suffix[count - 1]}")
     time_list.reverse()
     return ": ".join(time_list)
-        
+
