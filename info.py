@@ -1,7 +1,11 @@
 import re
 import os
 from os import environ, getenv
+from dotenv import load_dotenv
 from Script import script
+
+# ========== LOAD .ENV FILE ==========
+load_dotenv()
 
 # --- Helper Functions ---
 def is_enabled(value, default):
